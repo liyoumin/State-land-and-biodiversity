@@ -15,3 +15,108 @@ def categorize(PA_UC):
         return "Governmental"
     else:
         return "Other"
+BBS <- read.csv("E:/BBS/States/Florida.csv", header = TRUE)
+summary(BBS)
+table(BBS$Year, BBS$SpeciesTotal)
+regression <- lm(SpecisTotal ~ Year, data = BBS)
+str(BBS)   
+dim(BBS)   
+head(BBS)  
+colnames(BBS)  
+BBS <- as.data.frame(BBS)
+install.packages("plm")  
+install.packages("lmtest")  # For robust standard errors
+install.packages("sandwich")  # Robust covariance estimators
+library(plm)
+library(lmtest)
+library(sandwich)
+
+## data selection
+filtered_BBS <- BBS[!is.na(BBS$SpeciesTotal), ]
+colnames(data)
+## fixed model
+BBS <- pdata.frame(data, index = c("RouteDataID", "Year"))
+fe_model <- plm(BBS$SpeciesTotal ~ BBS$AOU, data = BBS, model = "within")  # Fixed effects model
+summary(fe_model)
+## check fe model efficiency
+pFtest(fe_model, plm(BBS$SpeciesTotal ~ BBS$AOU, data = BBS, model = "pooling"))
+## check for serial correlation
+re_model <- plm(BBS$SpeciesTotal ~ BBS$AOU, data = BBS, model = "random")
+phtest(fe_model, re_model)
+## hetero and autocorrelation
+coeftest(fe_model, vcovHC(fe_model, type = "HC1"))  # Heteroskedasticity-robust
+coeftest(fe_model, vcovHC(fe_model, type = "HAC"))  # HAC robust (for autocorrelation)
+## adding
+fe_model_time <- plm(BBS$SpeciesTotal ~ BBS$AOU, data = BBS, model = "within")
+summary(fe_model_time)
+
+
+### roseate
+roseate <- read.csv("E:/BBS/roseate_tern_modern_data_Modern genetic resources for Atlantic Basin populations of Roseate Tern Sterna dougallii, 2017-2018.csv")
+summary(roseate)
+table(roseate$NCBI.Biosample.Accession, roseate$NCBI.Bioproject.Assession)
+
+
+### biodiversity data process
+Bio <- read.csv("E:/state land and biodiversity/Statewide_Land_Use_Land_Cover/Parcel_PairwiseInter_ExportTable.csv", header = TRUE, stringsAsFactors = FALSE)
+summary (Bio)
+
+dim(Bio)  # Check if it has rows and columns
+head(Bio)  # View first few rows
+colnames(Bio)  # View column names
+colSums(is.na(Bio))  # Check missing values per column
+
+library(plm)
+str(Bio)   
+dim(Bio)   
+head(Bio)  
+colnames(Bio)  
+Bio <- as.data.frame(Bio)
+class(Bio)  # Should return "data.frame"
+filtered_Bio <- Bio[!is.na(Bio$LNDVAL), ]
+colnames(Bio) <- trimws(colnames(Bio))  # Remove extra spaces
+Bio <- Bio[complete.cases(Bio[, c("PARCELID","Priority_i", "LNDVAL", "PAUC", "WATER_MANA","LANDUSE_YE")]),]
+dim(Bio)  # Check if rows still exist
+
+Bio$PARCELID <- as.factor(Bio$PARCELID)  # Ensure id is categorical
+Bio$LANDUSE_YE <- as.numeric(Bio$LANDUSE_YE)  # Ensure time is numeric
+
+table(duplicated(Bio[, c("PARCELID", "LANDUSE_YE")]))
+Bio_unique <- Bio[!duplicated(Bio[, c("PARCELID", "LANDUSE_YE")]), ]
+colSums(is.na(Bio_unique[, c("PARCELID","Priority_i", "LNDVAL", "PAUC", "WATER_MANA")]))
+Bio_clean <- Bio[complete.cases(Bio[, c("SpeciesTotal", "LNDVAL", "PAUC")]), ]
+dim(Bio_clean) # confirm it still has rows
+table(index(Bio_clean), useNA = "ifany")
+
+Bio_panel <- pdata.frame(Bio_clean, index = c("PARCELID", "LANDUSE_YE"))
+dim(Bio_panel)
+
+###check
+library(dplyr)
+Bio_panel %>% 
+  group_by(LANDUSE_CO) %>% 
+  summarise(
+    var_SpeciesTotal = var(SpeciesTotal, na.rm = TRUE),
+    var_LNDVAL = var(LNDVAL, na.rm = TRUE),
+    var_PAUC = var(PAUC, na.rm = TRUE)
+  ) %>% 
+  summarise_all(~sum(. > 0, na.rm = TRUE))
+
+
+### Fixed effects model
+Biofe_model <- plm( SpeciesTotal ~ LANDUSE_YE,
+                   data = Bio_panel, 
+                   model = "random")  
+summary(Biofe_model)
+
+lm <- lm(SpeciesTotal ~ LANDUSE_CO + LNDVAL + WATER_MANA, data = Biofe_model)
+
+### check fix model efficiency
+
+
+### check for serial correlation
+
+### check for hetero and autocorrelation
+
+
+### check for endogeneity
